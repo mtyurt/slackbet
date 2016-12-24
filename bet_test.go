@@ -9,15 +9,17 @@ import (
 	"time"
 
 	"github.com/mediocregopher/radix.v2/redis"
-	"github.com/mtyurt/bet/repo"
+	"github.com/mtyurt/slack-bet/repo"
 )
+
+const slacktoken = "slacktoken"
 
 func TestStartingBetAcceptsOnlyAdmins(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(betHandler(&MockUtils{})))
 	defer ts.Close()
 
 	params := make(url.Values)
-	params.Add("token", "98I9RD7WAnC2jXyDq3r8VVBh")
+	params.Add("token", slacktoken)
 	params.Add("user_name", "ali")
 	params.Add("text", "start")
 
@@ -39,7 +41,7 @@ func TestBetCommands(t *testing.T) {
 	defer ts.Close()
 
 	params := make(url.Values)
-	params.Add("token", "98I9RD7WAnC2jXyDq3r8VVBh")
+	params.Add("token", slacktoken)
 	params.Add("text", "command")
 	params.Add("user_name", "sezgin")
 	recorder := httptest.NewRecorder()
@@ -295,7 +297,6 @@ func TestGetBet(t *testing.T) {
 
 func TestComplexBet(t *testing.T) {
 	utils := &MockUtils{}
-	utils.respChan = make(chan string)
 
 	cli, err := utils.OpenRedis()
 	if err != nil {
@@ -306,7 +307,7 @@ func TestComplexBet(t *testing.T) {
 	defer ts.Close()
 
 	params := make(url.Values)
-	params.Add("token", "98I9RD7WAnC2jXyDq3r8VVBh")
+	params.Add("token", slacktoken)
 	params.Add("user_name", "sezgin")
 	params.Add("text", "start")
 	if resp := betWithParams(params, utils); resp != "started bet[1] successfully" {
@@ -345,12 +346,7 @@ func TestComplexBet(t *testing.T) {
 	if strings.Contains(resp, "250") || !strings.Contains(resp, "100") || !strings.Contains(resp, "omer") || !strings.Contains(resp, "tarik") || !strings.Contains(resp, "end") {
 		t.Fatal("response does not contain necessary info", resp)
 	}
-	<-utils.respChan
-	if utils.url != "https://hooks.slack.com/services/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" {
-		t.Log(utils.url)
-		t.Fatal("url is wrong")
-	}
-	body := utils.body
+	body := utils.sentCallback
 	if strings.Contains(body, "250") || !strings.Contains(body, "100") || !strings.Contains(body, "omer") || !strings.Contains(body, "tarik") || !strings.Contains(body, "end") {
 		t.Log(body)
 		t.Fatal("body is wrong")
@@ -441,10 +437,8 @@ func betWithParams(params url.Values, utils *MockUtils) string {
 }
 
 type MockUtils struct {
-	url            string
-	body           string
-	respChan       chan string
 	channelMembers []string
+	sentCallback   string
 }
 
 func (util *MockUtils) GetRepo() repo.Repo {
@@ -464,9 +458,6 @@ func (util *MockUtils) GetChannelMembers() ([]string, error) {
 }
 
 func (util *MockUtils) PostHTTP(url string, body string) error {
-	util.url = url
-	util.body = body
-	util.respChan <- url
 	return nil
 }
 
@@ -474,5 +465,8 @@ func (util *MockUtils) GetAuthorizedUsers() []string {
 	return []string{"sezgin", "abdurrahim"}
 }
 func (util *MockUtils) GetConf() (*Conf, error) {
-	return &Conf{}, nil
+	return &Conf{SlashCommandToken: slacktoken}, nil
+}
+func (util *MockUtils) SendCallback(text string) {
+	util.sentCallback = text
 }

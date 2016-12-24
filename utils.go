@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/mediocregopher/radix.v2/redis"
-	"github.com/mtyurt/bet/repo"
+	"github.com/mtyurt/slack-bet/repo"
 )
 
 type DB struct {
@@ -19,6 +21,7 @@ type DB struct {
 const TimeFormat = "01-02-2006"
 
 type Utility struct {
+	RedisUrl string
 }
 type Utils interface {
 	OpenRedis() (*redis.Client, error)
@@ -27,13 +30,14 @@ type Utils interface {
 	GetChannelMembers() ([]string, error)
 	GetRepo() repo.Repo
 	GetConf() (*Conf, error)
+	SendCallback(string)
 }
 
 func (util *Utility) GetRepo() repo.Repo {
 	return nil
 }
 func (util *Utility) OpenRedis() (*redis.Client, error) {
-	client, err := redis.Dial("tcp", "localhost:37564")
+	client, err := redis.Dial("tcp", util.RedisUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -53,13 +57,31 @@ func (util *Utility) PostHTTP(url string, body string) error {
 }
 
 type Conf struct {
-	Admins       []string `json:admins`
-	Token        string   `json:readToken`
-	Channel      string   `json:channel`
-	ChannelID    string   `json:channelId`
-	WebhookToken string   `json:webhookToken`
+	Admins            []string `json:admins`
+	Token             string   `json:readToken`
+	Channel           string   `json:channel`
+	ChannelID         string   `json:channelId`
+	SlashCommandToken string   `json:slashCommandToken`
 }
 
+func (utils *Utility) SendCallback(text string) {
+	conf, err := utils.GetConf()
+	if err != nil {
+		return
+	}
+	uri := "https://slack.com/api/chat.postMessage?token=" + conf.Token + "&channel=" + url.QueryEscape(conf.Channel) + "&text=" + url.QueryEscape(text) + "&as_user=true"
+	resp, err := http.Get(uri)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer resp.Body.Close()
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+}
 func (util *Utility) GetAuthorizedUsers() []string {
 	conf, err := util.GetConf()
 	if err != nil {

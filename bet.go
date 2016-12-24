@@ -12,7 +12,7 @@ import (
 
 	"time"
 
-	"github.com/mtyurt/bet/repo"
+	"github.com/mtyurt/slack-bet/repo"
 )
 
 const availableCommands = "Available commands: save, start, end, list, info, whowins"
@@ -24,7 +24,7 @@ func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
 			writeResponseWithBadRequest(&w, err.Error())
 			return
 		}
-		err = parseRequestAndCheckToken(r, conf.WebhookToken)
+		err = parseRequestAndCheckToken(r, conf.SlashCommandToken)
 		if err != nil {
 			writeResponseWithBadRequest(&w, err.Error())
 			return
@@ -185,7 +185,7 @@ func doListAbsentUsers(utils Utils, betDetails []repo.BetDetail) {
 		}
 	}
 
-	sendCallback(utils, "Users who have not placed a bet yet: "+strings.Join(channelMembers, ", "))
+	utils.SendCallback("Users who have not placed a bet yet: " + strings.Join(channelMembers, ", "))
 }
 
 func calculateWhoWins(utils Utils, reference int) (string, error) {
@@ -328,7 +328,7 @@ func sendBetEndedCallback(utils Utils, betID int) {
 		fmt.Println(err.Error())
 		return
 	}
-	sendCallback(utils, betInfo)
+	utils.SendCallback(betInfo)
 }
 
 func sendCallback(utils Utils, text string) {
@@ -343,7 +343,7 @@ func sendCallback(utils Utils, text string) {
 		return
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -365,7 +365,7 @@ func saveBet(utils Utils, user string, number int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	go sendCallback(utils, user+" has placed a bet. Have you?")
+	go utils.SendCallback(user + " has placed a bet. Have you?")
 	return "saved successfully", nil
 }
 
@@ -411,7 +411,7 @@ func startNewBet(utils Utils, user string) (string, error) {
 		return "", err
 	}
 
-	go sendCallback(utils, "A new bet has started!")
+	go utils.SendCallback("A new bet has started!")
 	return "started bet[" + strconv.Itoa(newID) + "] successfully", nil
 }
 
@@ -471,7 +471,7 @@ func parseRequestAndCheckToken(r *http.Request, token string) error {
 }
 
 func main() {
-	utils := &Utility{}
+	utils := &Utility{RedisUrl: "localhost:37564"}
 	_, err := utils.GetConf()
 	if err != nil {
 		fmt.Println("conf cannot be read", err)

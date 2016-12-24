@@ -22,6 +22,7 @@ const TimeFormat = "01-02-2006"
 
 type Utility struct {
 	RedisUrl string
+	conf     *Conf
 }
 type Utils interface {
 	OpenRedis() (*redis.Client, error)
@@ -90,6 +91,9 @@ func (util *Utility) GetAuthorizedUsers() []string {
 	return conf.Admins
 }
 func (util *Utility) GetConf() (*Conf, error) {
+	if util.conf != nil {
+		return util.conf, nil
+	}
 	file, err := os.Open("conf.json")
 	if err != nil {
 		return nil, err
@@ -99,6 +103,7 @@ func (util *Utility) GetConf() (*Conf, error) {
 	if err != nil {
 		return nil, err
 	}
+	util.conf = c
 	return c, nil
 }
 

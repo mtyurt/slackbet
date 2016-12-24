@@ -3,9 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -331,25 +329,6 @@ func sendBetEndedCallback(utils Utils, betID int) {
 	utils.SendCallback(betInfo)
 }
 
-func sendCallback(utils Utils, text string) {
-	conf, err := utils.GetConf()
-	if err != nil {
-		return
-	}
-	uri := "https://slack.com/api/chat.postMessage?token=" + conf.Token + "&channel=" + url.QueryEscape(conf.Channel) + "&text=" + url.QueryEscape(text) + "&as_user=true"
-	resp, err := http.Get(uri)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	defer resp.Body.Close()
-	_, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-}
-
 func saveBet(utils Utils, user string, number int) (string, error) {
 	openBetID, err := repo.GetIDOfOpenBet()
 	if openBetID == -1 {
@@ -471,8 +450,8 @@ func parseRequestAndCheckToken(r *http.Request, token string) error {
 }
 
 func main() {
-	utils := &Utility{RedisUrl: "localhost:37564"}
-	_, err := utils.GetConf()
+	utils := &Utility{ConfFileName: "conf.json"}
+	conf, err := utils.GetConf()
 	if err != nil {
 		fmt.Println("conf cannot be read", err)
 		return
@@ -481,5 +460,5 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello mate.")
 	})
-	http.ListenAndServe(":35789", nil)
+	http.ListenAndServe(":"+conf.Port, nil)
 }

@@ -21,8 +21,8 @@ type DB struct {
 const TimeFormat = "01-02-2006"
 
 type Utility struct {
-	RedisUrl string
-	conf     *Conf
+	conf         *Conf
+	ConfFileName string
 }
 type Utils interface {
 	OpenRedis() (*redis.Client, error)
@@ -38,7 +38,11 @@ func (util *Utility) GetRepo() repo.Repo {
 	return nil
 }
 func (util *Utility) OpenRedis() (*redis.Client, error) {
-	client, err := redis.Dial("tcp", util.RedisUrl)
+	conf, err := util.GetConf()
+	if err != nil {
+		return nil, err
+	}
+	client, err := redis.Dial("tcp", conf.RedisUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -59,10 +63,12 @@ func (util *Utility) PostHTTP(url string, body string) error {
 
 type Conf struct {
 	Admins            []string `json:admins`
-	Token             string   `json:readToken`
+	PostToken         string   `json:postToken`
 	Channel           string   `json:channel`
 	ChannelID         string   `json:channelId`
 	SlashCommandToken string   `json:slashCommandToken`
+	RedisUrl          string   `json:redisUrl`
+	Port              string   `json:port`
 }
 
 func (utils *Utility) SendCallback(text string) {
@@ -70,7 +76,7 @@ func (utils *Utility) SendCallback(text string) {
 	if err != nil {
 		return
 	}
-	uri := "https://slack.com/api/chat.postMessage?token=" + conf.Token + "&channel=" + url.QueryEscape(conf.Channel) + "&text=" + url.QueryEscape(text) + "&as_user=true"
+	uri := "https://slack.com/api/chat.postMessage?token=" + conf.PostToken + "&channel=" + url.QueryEscape(conf.Channel) + "&text=" + url.QueryEscape(text) + "&as_user=true"
 	resp, err := http.Get(uri)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -94,7 +100,7 @@ func (util *Utility) GetConf() (*Conf, error) {
 	if util.conf != nil {
 		return util.conf, nil
 	}
-	file, err := os.Open("conf.json")
+	file, err := os.Open(util.ConfFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +137,7 @@ func (util *Utility) GetChannelMembers() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.Get("https://slack.com/api/channels.info?token=" + conf.Token + "&channel=" + conf.ChannelID)
+	resp, err := http.Get("https://slack.com/api/channels.info?token=" + conf.PostToken + "&channel=" + conf.ChannelID)
 
 	if err != nil {
 		return nil, err
@@ -148,7 +154,7 @@ func (util *Utility) GetChannelMembers() ([]string, error) {
 	}
 	memberIds := channelInfo.Channel.Members
 	var userNames []string
-	baseUserInfoReqUrl := "https://slack.com/api/users.info?token=" + conf.Token + "&user="
+	baseUserInfoReqUrl := "https://slack.com/api/users.info?token=" + conf.PostToken + "&user="
 	for _, userId := range memberIds {
 		resp, err = http.Get(baseUserInfoReqUrl + userId)
 		body, err = ioutil.ReadAll(resp.Body)

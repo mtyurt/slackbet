@@ -1,0 +1,9 @@
+{
+	"admins": ["tarik"],
+	"postToken": "chat-bot-token",
+	"channel":"#general",
+	"channelId":"C9NMN9WVP",
+	"slashCommandToken":"8sLyRlhvsFwnZNOT1bpOxuocv1NnvZ1u",
+	"redisUrl":"http://localhost:6379",
+	"port":"37564"
+}

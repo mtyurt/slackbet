@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -423,6 +424,35 @@ func TestSaveWinner(t *testing.T) {
 		t.Fatal("save winner failed", err, getResp)
 	}
 
+}
+
+func TestExampleConf(t *testing.T) {
+	util := &Utility{ConfFileName: "conf.example.json"}
+	conf, err := util.GetConf()
+	if err != nil || conf == nil {
+		t.Fatal("error in initialization, err:", err, "conf:", conf)
+	}
+	if !reflect.DeepEqual(conf.Admins, []string{"tarik"}) {
+		t.Fatal("admins is wrong:", conf.Admins)
+	}
+	if conf.PostToken != "chat-bot-token" {
+		t.Error("token is wrong:", conf.PostToken)
+	}
+	if conf.Channel != "#general" {
+		t.Fatal("channel is wrong:", conf.Channel)
+	}
+	if conf.ChannelID != "C9NMN9WVP" {
+		t.Fatal("channel id is wrong:", conf.ChannelID)
+	}
+	if conf.SlashCommandToken != "8sLyRlhvsFwnZNOT1bpOxuocv1NnvZ1u" {
+		t.Fatal("slash command token is wrong:", conf.SlashCommandToken)
+	}
+	if conf.RedisUrl != "http://localhost:6379" {
+		t.Fatal("redis url is wrong:", conf.RedisUrl)
+	}
+	if conf.Port != "37564" {
+		t.Fatal("port is wrong:", conf.Port)
+	}
 }
 
 func betWithParams(params url.Values, utils *MockUtils) string {

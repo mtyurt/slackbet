@@ -3,7 +3,8 @@ package repo
 import "testing"
 
 func TestGetBetSummary(t *testing.T) {
-	_, err := GetBetSummary(1)
+	r := &RedisRepo{Url: "http://localhost:6379"}
+	_, err := r.GetBetSummary(1)
 	if err == nil {
 		t.Fatal("error is expected")
 	}

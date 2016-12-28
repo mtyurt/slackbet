@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/mediocregopher/radix.v2/redis"
 	"github.com/mtyurt/slack-bet/repo"
 )
 
@@ -23,31 +22,15 @@ const TimeFormat = "01-02-2006"
 type Utility struct {
 	conf         *Conf
 	ConfFileName string
+	Repo         repo.Repo
 }
 type Utils interface {
-	OpenRedis() (*redis.Client, error)
 	PostHTTP(string, string) error
 	GetAuthorizedUsers() []string
 	GetChannelMembers() ([]string, error)
-	GetRepo() repo.Repo
-	GetConf() (*Conf, error)
 	SendCallback(string)
 }
 
-func (util *Utility) GetRepo() repo.Repo {
-	return nil
-}
-func (util *Utility) OpenRedis() (*redis.Client, error) {
-	conf, err := util.GetConf()
-	if err != nil {
-		return nil, err
-	}
-	client, err := redis.Dial("tcp", conf.RedisUrl)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
 func (util *Utility) PostHTTP(url string, body string) error {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(body)))
 	if err != nil {

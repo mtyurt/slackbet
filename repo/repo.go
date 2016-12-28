@@ -8,11 +8,20 @@ import (
 )
 
 type Repo interface {
+	AddNewBet(int, string) error
 	BetIDExists(betID int) (bool, error)
-	GetBetSummary(betID int) (BetSummary, error)
+	GetBetDetails(int) ([]BetDetail, error)
+	GetIDOfOpenBet() (int, error)
 	GetLastBetID() (int, error)
+	GetWinnerScore(int) (int, error)
+	SetBetAsEnded(int, string) error
+	SetBetDetail(int, []BetDetail) error
+	SetBetWinner(int, int) error
+	GetBetSummary(betID int) (*BetSummary, error)
 }
-type RedisRepo struct{}
+type RedisRepo struct {
+	Url string
+}
 type BetSummary struct {
 	ID           int
 	Status       string
@@ -28,8 +37,8 @@ type BetDetail struct {
 
 // SetBetWinner sets the winner field of the bet.
 // returns error in case of a connection error.
-func SetBetWinner(betID int, winner int) error {
-	client, err := openRedisClient()
+func (repo *RedisRepo) SetBetWinner(betID int, winner int) error {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return err
 	}
@@ -42,8 +51,8 @@ func SetBetWinner(betID int, winner int) error {
 
 // BetIDExists returns true if a bet with given id exists
 // returns error for any connection error
-func BetIDExists(betID int) (bool, error) {
-	client, err := openRedisClient()
+func (repo *RedisRepo) BetIDExists(betID int) (bool, error) {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return false, err
 	}
@@ -57,8 +66,8 @@ func BetIDExists(betID int) (bool, error) {
 
 // GetBetSummary returns summary of bet with ID
 // return error for any connection error
-func GetBetSummary(betID int) (*BetSummary, error) {
-	client, err := openRedisClient()
+func (repo *RedisRepo) GetBetSummary(betID int) (*BetSummary, error) {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +92,8 @@ func GetBetSummary(betID int) (*BetSummary, error) {
 
 // GetBetDetails finds and returns details list of the bet.
 // returns error in case of a connection error.
-func GetBetDetails(betID int) ([]BetDetail, error) {
-	client, err := openRedisClient()
+func (repo *RedisRepo) GetBetDetails(betID int) ([]BetDetail, error) {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return nil, err
 	}
@@ -104,8 +113,8 @@ func GetBetDetails(betID int) ([]BetDetail, error) {
 
 // GetLastBetID returns the last inserted bet id into the system
 // returns error in case of a connection error.
-func GetLastBetID() (int, error) {
-	client, err := openRedisClient()
+func (repo *RedisRepo) GetLastBetID() (int, error) {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return -1, nil
 	}
@@ -120,8 +129,8 @@ func GetLastBetID() (int, error) {
 // GetIDOfOpenBet returns the id of the open bet if there is any.
 // in redis, openBet is indicated by `OpenBet` identifier.
 // returns error in case of a connection error.
-func GetIDOfOpenBet() (int, error) {
-	client, err := openRedisClient()
+func (repo *RedisRepo) GetIDOfOpenBet() (int, error) {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return -1, nil
 	}
@@ -137,8 +146,8 @@ func GetIDOfOpenBet() (int, error) {
 // GetWinnerScore returns the winner score that belongs to the bet with betID.
 // Returns -1 if bet doesn't have a winnerScore.
 // returns error in case of a connection error.
-func GetWinnerScore(betID int) (int, error) {
-	client, err := openRedisClient()
+func (repo *RedisRepo) GetWinnerScore(betID int) (int, error) {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return -1, nil
 	}
@@ -157,8 +166,8 @@ func GetWinnerScore(betID int) (int, error) {
 
 // SetBetAsEnded marks the bet as ended and sets the endDate with given date.
 // returns error in case of a connection error.
-func SetBetAsEnded(betID int, date string) error {
-	client, err := openRedisClient()
+func (repo *RedisRepo) SetBetAsEnded(betID int, date string) error {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return nil
 	}
@@ -177,8 +186,8 @@ func SetBetAsEnded(betID int, date string) error {
 
 // AddNewBet adds a new bet info with given id and startDate.
 // returns error in case of a connection error.
-func AddNewBet(betID int, startDate string) error {
-	client, err := openRedisClient()
+func (repo *RedisRepo) AddNewBet(betID int, startDate string) error {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return nil
 	}
@@ -199,8 +208,8 @@ func AddNewBet(betID int, startDate string) error {
 	client.PipeClear()
 	return nil
 }
-func SetBetDetail(betID int, details []BetDetail) error {
-	client, err := openRedisClient()
+func (repo *RedisRepo) SetBetDetail(betID int, details []BetDetail) error {
+	client, err := repo.openRedisClient()
 	if err != nil {
 		return nil
 	}
@@ -216,7 +225,7 @@ func SetBetDetail(betID int, details []BetDetail) error {
 	}
 	return nil
 }
-func openRedisClient() (*redis.Client, error) {
+func (repo *RedisRepo) openRedisClient() (*redis.Client, error) {
 	client, err := redis.Dial("tcp", "localhost:37564")
 	if err != nil {
 		return nil, err

@@ -15,14 +15,15 @@ import (
 
 const availableCommands = "Available commands: save, start, end, list, info, whowins"
 
-func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
+type betService struct {
+	repo  repo.Repo
+	conf  *Conf
+	utils Utils
+}
+
+func betHandler(service *betService) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		conf, err := utils.GetConf()
-		if err != nil {
-			writeResponseWithBadRequest(&w, err.Error())
-			return
-		}
-		err = parseRequestAndCheckToken(r, conf.SlashCommandToken)
+		err := service.parseRequestAndCheckToken(r)
 		if err != nil {
 			writeResponseWithBadRequest(&w, err.Error())
 			return
@@ -49,9 +50,9 @@ func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
 		}
 		var resp string
 		if strings.EqualFold("start", firstCommand) {
-			resp, err = startNewBet(utils, user)
+			resp, err = service.startNewBet(user)
 		} else if strings.EqualFold("list", firstCommand) {
-			resp, err = listBets(utils)
+			resp, err = service.listBets()
 		} else if strings.EqualFold("save", firstCommand) {
 			if len(commands) != 2 {
 				writeResponseWithBadRequest(&w, "save command format: save <number>")
@@ -62,9 +63,9 @@ func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
 				writeResponseWithBadRequest(&w, "number is not a valid integer "+commands[1])
 				return
 			}
-			resp, err = saveBet(utils, user, number)
+			resp, err = service.saveBet(user, number)
 		} else if strings.EqualFold("end", firstCommand) {
-			resp, err = endBet(utils, user)
+			resp, err = service.endBet(user)
 		} else if strings.EqualFold("info", firstCommand) {
 			betID := -1
 			if len(commands) > 1 {
@@ -75,7 +76,7 @@ func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			resp, err = getBetInfo(utils, betID)
+			resp, err = service.getBetInfo(betID)
 		} else if strings.EqualFold("whowins", firstCommand) {
 			if len(commands) > 1 {
 				referenceNumber, err := strconv.Atoi(commands[1])
@@ -83,7 +84,7 @@ func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
 					writeResponseWithBadRequest(&w, "reference number is not a valid integer "+commands[1])
 					return
 				}
-				resp, err = calculateWhoWins(utils, referenceNumber)
+				resp, err = service.calculateWhoWins(referenceNumber)
 			} else {
 				writeResponseWithBadRequest(&w, "usage: /bet whowins <number>")
 				return
@@ -99,9 +100,9 @@ func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
 				writeResponseWithBadRequest(&w, "number is not a valid integer "+commands[2])
 				return
 			}
-			resp, err = saveBet(utils, user, number)
+			resp, err = service.saveBet(user, number)
 		} else if strings.EqualFold("listabsent", firstCommand) {
-			resp, err = listAbsentUsers(utils)
+			resp, err = service.listAbsentUsers()
 			if err != nil {
 			}
 		} else if strings.EqualFold("savewinner", firstCommand) && user == "tarik" {
@@ -120,7 +121,7 @@ func betHandler(utils Utils) func(w http.ResponseWriter, r *http.Request) {
 				writeResponseWithBadRequest(&w, "number is not a valid integer "+commands[1])
 				return
 			}
-			resp, err = saveWinner(utils, betID, winner)
+			resp, err = service.saveWinner(betID, winner)
 		}
 
 		if err != nil {
@@ -137,37 +138,37 @@ func (a ByBet) Len() int           { return len(a) }
 func (a ByBet) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByBet) Less(i, j int) bool { return a[i].Number < a[j].Number }
 
-func saveWinner(utils Utils, betID int, winner int) (string, error) {
-	exists, err := repo.BetIDExists(betID)
+func (service *betService) saveWinner(betID int, winner int) (string, error) {
+	exists, err := service.repo.BetIDExists(betID)
 	if err != nil || !exists {
 		return "", errors.New("No such bet exists.")
 	}
 
-	err = repo.SetBetWinner(betID, winner)
+	err = service.repo.SetBetWinner(betID, winner)
 	if err != nil {
 		return "", err
 	}
 	return "winner " + strconv.Itoa(winner) + "for bet " + strconv.Itoa(betID) + " is saved successfully", err
 }
 
-func listAbsentUsers(utils Utils) (string, error) {
-	openBetID, err := repo.GetIDOfOpenBet()
+func (service *betService) listAbsentUsers() (string, error) {
+	openBetID, err := service.repo.GetIDOfOpenBet()
 	if err != nil {
 		return "", err
 	}
 	if openBetID == -1 {
 		return "there is no active bet.", err
 	}
-	betDetails, err := repo.GetBetDetails(openBetID)
+	betDetails, err := service.repo.GetBetDetails(openBetID)
 	if err != nil {
 		return "", err
 	}
-	go doListAbsentUsers(utils, betDetails)
+	go service.doListAbsentUsers(betDetails)
 	return "ok", nil
 }
 
-func doListAbsentUsers(utils Utils, betDetails []repo.BetDetail) {
-	channelMembers, err := utils.GetChannelMembers()
+func (service *betService) doListAbsentUsers(betDetails []repo.BetDetail) {
+	channelMembers, err := service.utils.GetChannelMembers()
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -183,30 +184,30 @@ func doListAbsentUsers(utils Utils, betDetails []repo.BetDetail) {
 		}
 	}
 
-	utils.SendCallback("Users who have not placed a bet yet: " + strings.Join(channelMembers, ", "))
+	service.utils.SendCallback("Users who have not placed a bet yet: " + strings.Join(channelMembers, ", "))
 }
 
-func calculateWhoWins(utils Utils, reference int) (string, error) {
-	betID, err := repo.GetLastBetID()
+func (service *betService) calculateWhoWins(reference int) (string, error) {
+	betID, err := service.repo.GetLastBetID()
 	if err != nil {
 		return "", err
 	}
 	if betID == -1 {
 		return "No bet exists", nil
 	}
-	openBetID, err := repo.GetIDOfOpenBet()
+	openBetID, err := service.repo.GetIDOfOpenBet()
 	if err != nil {
 		return "", err
 	}
 	if openBetID == betID {
 		return "you cannot query who wins for an active bet! I'm telling mom", nil
 	}
-	details, err := repo.GetBetDetails(betID)
+	details, err := service.repo.GetBetDetails(betID)
 	if err != nil {
 		return "", err
 	}
 	totalUser := len(details)
-	details = getWinners(details, reference)
+	details = service.getWinners(details, reference)
 	summary := "bet " + strconv.Itoa(betID) + ", " + strconv.Itoa(totalUser) + " people joined, hypothetical " + strconv.Itoa(totalUser/2) + " winners for score " + strconv.Itoa(reference) + ": "
 	responseStr := summary + "\n"
 	for _, detail := range details {
@@ -215,7 +216,7 @@ func calculateWhoWins(utils Utils, reference int) (string, error) {
 	return responseStr, nil
 }
 
-func getWinners(details []repo.BetDetail, score int) []repo.BetDetail {
+func (service *betService) getWinners(details []repo.BetDetail, score int) []repo.BetDetail {
 	userBetMap := make(map[string]int)
 	totalUser := len(details)
 
@@ -237,11 +238,11 @@ func getWinners(details []repo.BetDetail, score int) []repo.BetDetail {
 	return winners
 }
 
-func getBetInfo(utils Utils, id int) (string, error) {
+func (service *betService) getBetInfo(id int) (string, error) {
 	var err error
 	betID := id
 	if betID == -1 {
-		betID, err = repo.GetLastBetID()
+		betID, err = service.repo.GetLastBetID()
 		if err != nil {
 			return "", err
 		}
@@ -249,32 +250,32 @@ func getBetInfo(utils Utils, id int) (string, error) {
 			return "No bet exists", nil
 		}
 	}
-	exists, err := repo.BetIDExists(betID)
+	exists, err := service.repo.BetIDExists(betID)
 	if err != nil || !exists {
 		return "", errors.New("No such bet exists.")
 	}
-	summary, err := betSummary(betID)
+	summary, err := service.betSummary(betID)
 	if err != nil {
 		return "", err
 	}
-	openBetID, err := repo.GetIDOfOpenBet()
+	openBetID, err := service.repo.GetIDOfOpenBet()
 	if err != nil {
 		return "", nil
 	}
 	if openBetID == betID {
 		return summary, nil
 	}
-	details, err := repo.GetBetDetails(betID)
+	details, err := service.repo.GetBetDetails(betID)
 	if err != nil {
 		return "", err
 	}
 	sort.Sort(ByBet(details))
-	winnerScore, err := repo.GetWinnerScore(betID)
+	winnerScore, err := service.repo.GetWinnerScore(betID)
 	winners := make(map[string]int)
 	if winnerScore != -1 {
 		winnerUsers := make([]repo.BetDetail, len(details))
 		copy(winnerUsers, details)
-		winnerUsers = getWinners(winnerUsers, winnerScore)
+		winnerUsers = service.getWinners(winnerUsers, winnerScore)
 		for _, detail := range winnerUsers {
 			winners[detail.User] = detail.Number
 		}
@@ -290,11 +291,11 @@ func getBetInfo(utils Utils, id int) (string, error) {
 	return responseStr, nil
 }
 
-func endBet(utils Utils, user string) (string, error) {
-	if !isUserAuthorized(utils, user) {
+func (service *betService) endBet(user string) (string, error) {
+	if !service.isUserAuthorized(user) {
 		return "", errors.New("You are not authorized to end a bet.")
 	}
-	openBetID, err := repo.GetIDOfOpenBet()
+	openBetID, err := service.repo.GetIDOfOpenBet()
 	if err != nil {
 		return "", err
 	}
@@ -302,16 +303,16 @@ func endBet(utils Utils, user string) (string, error) {
 		return "", errors.New("There is no active bet right now.")
 	}
 	date := time.Now().Format(TimeFormat)
-	err = repo.SetBetAsEnded(openBetID, date)
+	err = service.repo.SetBetAsEnded(openBetID, date)
 	if err != nil {
 		return "", err
 	}
-	go sendBetEndedCallback(utils, openBetID)
+	go service.sendBetEndedCallback(openBetID)
 	return "ended bet[" + strconv.Itoa(openBetID) + "] successfully", nil
 }
 
-func isUserAuthorized(utils Utils, user string) bool {
-	authorizedUsers := utils.GetAuthorizedUsers()
+func (service *betService) isUserAuthorized(user string) bool {
+	authorizedUsers := service.utils.GetAuthorizedUsers()
 	for _, n := range authorizedUsers {
 		if strings.EqualFold(n, user) {
 			return true
@@ -320,31 +321,31 @@ func isUserAuthorized(utils Utils, user string) bool {
 	return false
 }
 
-func sendBetEndedCallback(utils Utils, betID int) {
-	betInfo, err := getBetInfo(utils, betID)
+func (service *betService) sendBetEndedCallback(betID int) {
+	betInfo, err := service.getBetInfo(betID)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	utils.SendCallback(betInfo)
+	service.utils.SendCallback(betInfo)
 }
 
-func saveBet(utils Utils, user string, number int) (string, error) {
-	openBetID, err := repo.GetIDOfOpenBet()
+func (service *betService) saveBet(user string, number int) (string, error) {
+	openBetID, err := service.repo.GetIDOfOpenBet()
 	if openBetID == -1 {
 		return "", errors.New("There is no active bet right now.")
 	}
 
-	details, err := repo.GetBetDetails(openBetID)
+	details, err := service.repo.GetBetDetails(openBetID)
 	if err != nil {
 		return "", err
 	}
 	details = appendBetToList(details, user, number)
-	err = repo.SetBetDetail(openBetID, details)
+	err = service.repo.SetBetDetail(openBetID, details)
 	if err != nil {
 		return "", err
 	}
-	go utils.SendCallback(user + " has placed a bet. Have you?")
+	go service.utils.SendCallback(user + " has placed a bet. Have you?")
 	return "saved successfully", nil
 }
 
@@ -366,18 +367,18 @@ func appendBetToList(list []repo.BetDetail, user string, number int) []repo.BetD
 	return newList
 }
 
-func startNewBet(utils Utils, user string) (string, error) {
-	if !isUserAuthorized(utils, user) {
+func (service *betService) startNewBet(user string) (string, error) {
+	if !service.isUserAuthorized(user) {
 		return "", errors.New("You are not authorized to start a bet.")
 	}
-	openBetID, err := repo.GetIDOfOpenBet()
+	openBetID, err := service.repo.GetIDOfOpenBet()
 	if err != nil {
 		return "openbetid", err
 	}
 	if openBetID != -1 {
 		return "", errors.New("There is a bet in progress, please finish it first.")
 	}
-	lastBetID, err := repo.GetLastBetID()
+	lastBetID, err := service.repo.GetLastBetID()
 	if err != nil {
 		return "", err
 	}
@@ -385,17 +386,17 @@ func startNewBet(utils Utils, user string) (string, error) {
 		lastBetID = 0
 	}
 	newID := lastBetID + 1
-	err = repo.AddNewBet(newID, time.Now().Format(TimeFormat))
+	err = service.repo.AddNewBet(newID, time.Now().Format(TimeFormat))
 	if err != nil {
 		return "", err
 	}
 
-	go utils.SendCallback("A new bet has started!")
+	go service.utils.SendCallback("A new bet has started!")
 	return "started bet[" + strconv.Itoa(newID) + "] successfully", nil
 }
 
-func listBets(util Utils) (string, error) {
-	lastID, err := repo.GetLastBetID()
+func (service *betService) listBets() (string, error) {
+	lastID, err := service.repo.GetLastBetID()
 	if err != nil {
 		return "", nil
 	}
@@ -408,7 +409,7 @@ func listBets(util Utils) (string, error) {
 		i = 1
 	}
 	for ; i <= lastID; i++ {
-		summary, err := betSummary(i)
+		summary, err := service.betSummary(i)
 		if err == nil {
 			responseStr += summary + "\n"
 		} else {
@@ -418,8 +419,8 @@ func listBets(util Utils) (string, error) {
 	return responseStr, nil
 }
 
-func betSummary(betID int) (string, error) {
-	summary, err := repo.GetBetSummary(betID)
+func (service *betService) betSummary(betID int) (string, error) {
+	summary, err := service.repo.GetBetSummary(betID)
 	if err != nil {
 		return "", err
 	}
@@ -440,11 +441,11 @@ func writeResponseWithBadRequest(w *http.ResponseWriter, text string) {
 	fmt.Fprintf(*w, text)
 }
 
-func parseRequestAndCheckToken(r *http.Request, token string) error {
+func (service *betService) parseRequestAndCheckToken(r *http.Request) error {
 	r.ParseForm()
 
-	if r.FormValue("token") != token {
-		return errors.New("Token invalid, contact @tarik")
+	if r.FormValue("token") != service.conf.SlashCommandToken {
+		return errors.New("Token invalid, contact an admin")
 	}
 	return nil
 }
@@ -456,7 +457,8 @@ func main() {
 		fmt.Println("conf cannot be read", err)
 		return
 	}
-	http.HandleFunc("/bet", betHandler(utils))
+	service := &betService{repo: &repo.RedisRepo{Url: conf.RedisUrl}, conf: conf, utils: utils}
+	http.HandleFunc("/bet", betHandler(service))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello mate.")
 	})

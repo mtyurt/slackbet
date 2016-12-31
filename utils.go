@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -13,10 +12,6 @@ import (
 	"github.com/mtyurt/slack-bet/repo"
 )
 
-type DB struct {
-	*sql.DB
-}
-
 const TimeFormat = "01-02-2006"
 
 type Utility struct {
@@ -25,23 +20,9 @@ type Utility struct {
 	Repo         repo.Repo
 }
 type Utils interface {
-	PostHTTP(string, string) error
 	GetAuthorizedUsers() []string
 	GetChannelMembers() ([]string, error)
 	SendCallback(string)
-}
-
-func (util *Utility) PostHTTP(url string, body string) error {
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(body)))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	if _, err := client.Do(req); err != nil {
-		return err
-	}
-	return nil
 }
 
 type Conf struct {

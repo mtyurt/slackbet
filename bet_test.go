@@ -488,10 +488,6 @@ func (util *MockUtils) GetChannelMembers() ([]string, error) {
 	return util.channelMembers, nil
 }
 
-func (util *MockUtils) PostHTTP(url string, body string) error {
-	return nil
-}
-
 func (util *MockUtils) GetAuthorizedUsers() []string {
 	return []string{"sezgin", "abdurrahim"}
 }

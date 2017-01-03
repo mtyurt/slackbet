@@ -1,4 +1,4 @@
-package main
+package slack
 
 import (
 	"encoding/json"
@@ -6,39 +6,16 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 
-	"github.com/mtyurt/slack-bet/repo"
+	"github.com/mtyurt/slackbet"
 )
 
-const TimeFormat = "01-02-2006"
-
-type Utility struct {
-	conf         *Conf
-	ConfFileName string
-	Repo         repo.Repo
-}
-type Utils interface {
-	GetAuthorizedUsers() []string
-	GetChannelMembers() ([]string, error)
-	SendCallback(string)
+type SlackService struct {
+	Conf *slackbet.Conf
 }
 
-type Conf struct {
-	Admins            []string `json:admins`
-	PostToken         string   `json:postToken`
-	Channel           string   `json:channel`
-	ChannelID         string   `json:channelId`
-	SlashCommandToken string   `json:slashCommandToken`
-	RedisUrl          string   `json:redisUrl`
-	Port              string   `json:port`
-}
-
-func (utils *Utility) SendCallback(text string) {
-	conf, err := utils.GetConf()
-	if err != nil {
-		return
-	}
+func (service *SlackService) SendCallback(text string) {
+	conf := service.Conf
 	uri := "https://slack.com/api/chat.postMessage?token=" + conf.PostToken + "&channel=" + url.QueryEscape(conf.Channel) + "&text=" + url.QueryEscape(text) + "&as_user=true"
 	resp, err := http.Get(uri)
 	if err != nil {
@@ -52,33 +29,11 @@ func (utils *Utility) SendCallback(text string) {
 		return
 	}
 }
-func (util *Utility) GetAuthorizedUsers() []string {
-	conf, err := util.GetConf()
-	if err != nil {
-		return []string{}
-	}
-	return conf.Admins
-}
-func (util *Utility) GetConf() (*Conf, error) {
-	if util.conf != nil {
-		return util.conf, nil
-	}
-	file, err := os.Open(util.ConfFileName)
-	if err != nil {
-		return nil, err
-	}
-	c := &Conf{}
-	err = json.NewDecoder(file).Decode(c)
-	if err != nil {
-		return nil, err
-	}
-	util.conf = c
-	return c, nil
-}
 
 type sluserinfo struct {
 	Name    string `json:name`
 	Deleted bool   `json:deleted`
+	IsBot   bool   `json:is_bot`
 }
 
 type sluser struct {
@@ -95,11 +50,8 @@ type slchannel struct {
 	Channel slchannelinfo `json:channel`
 }
 
-func (util *Utility) GetChannelMembers() ([]string, error) {
-	conf, err := util.GetConf()
-	if err != nil {
-		return nil, err
-	}
+func (service *SlackService) GetChannelMembers() ([]string, error) {
+	conf := service.Conf
 	resp, err := http.Get("https://slack.com/api/channels.info?token=" + conf.PostToken + "&channel=" + conf.ChannelID)
 
 	if err != nil {
@@ -130,7 +82,7 @@ func (util *Utility) GetChannelMembers() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if usrinfo.User.Deleted {
+		if usrinfo.User.Deleted || usrinfo.User.IsBot {
 			continue
 		}
 		userNames = append(userNames, usrinfo.User.Name)

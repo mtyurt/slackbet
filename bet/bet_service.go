@@ -122,6 +122,31 @@ func (service *BetService) getWinners(details []repo.BetDetail, score int) []rep
 	}
 	return winners
 }
+func (service *BetService) GetLastEndedBetInfo() (string, error) {
+	betID, err := service.Repo.GetLastBetID()
+	if err != nil {
+		return "", err
+	}
+	if betID == -1 {
+		return "No bet exists", nil
+	}
+	openBetID, err := service.Repo.GetIDOfOpenBet()
+	if err != nil {
+		return "", nil
+	}
+	if betID == openBetID {
+		betID = betID - 1
+	}
+	exists, err := service.Repo.BetIDExists(betID)
+	if err != nil || !exists {
+		return "", errors.New("No such bet exists.")
+	}
+	summary, err := service.betSummary(betID)
+	if err != nil {
+		return "", err
+	}
+	return service.generateBetDetails(betID, summary)
+}
 
 func (service *BetService) GetBetInfo(id int) (string, error) {
 	var err error
@@ -145,11 +170,14 @@ func (service *BetService) GetBetInfo(id int) (string, error) {
 	}
 	openBetID, err := service.Repo.GetIDOfOpenBet()
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	if openBetID == betID {
 		return summary, nil
 	}
+	return service.generateBetDetails(betID, summary)
+}
+func (service *BetService) generateBetDetails(betID int, summary string) (string, error) {
 	details, err := service.Repo.GetBetDetails(betID)
 	if err != nil {
 		return "", err

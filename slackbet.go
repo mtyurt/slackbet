@@ -13,6 +13,7 @@ type BetService interface {
 	GetBetInfo(int) (string, error)
 	CalculateWhoWins(int) (string, error)
 	SaveWinner(int, int) (string, error)
+	GetLastEndedBetInfo() (string, error)
 	ListAbsentUsers() (string, error)
 }
 type SlackService interface {

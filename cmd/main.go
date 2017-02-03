@@ -14,7 +14,7 @@ import (
 	"github.com/mtyurt/slackbet/slack"
 )
 
-const availableCommands = "Available commands: save, start, end, list, info, whowins"
+const availableCommands = "Available commands: save, list, info, last, whowins "
 
 func betHandler(service slackbet.BetService) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +39,7 @@ func betHandler(service slackbet.BetService) func(w http.ResponseWriter, r *http
 			!strings.EqualFold("listabsent", firstCommand) &&
 			!strings.EqualFold("savewinner", firstCommand) &&
 			!strings.EqualFold("list", firstCommand) &&
+			!strings.EqualFold("last", firstCommand) &&
 			!strings.EqualFold("info", firstCommand) {
 			writeResponseWithBadRequest(&w, availableCommands)
 			return
@@ -98,8 +99,6 @@ func betHandler(service slackbet.BetService) func(w http.ResponseWriter, r *http
 			resp, err = service.SaveBet(user, number)
 		} else if strings.EqualFold("listabsent", firstCommand) {
 			resp, err = service.ListAbsentUsers()
-			if err != nil {
-			}
 		} else if strings.EqualFold("savewinner", firstCommand) && user == "tarik" {
 
 			if len(commands) != 3 {
@@ -117,6 +116,8 @@ func betHandler(service slackbet.BetService) func(w http.ResponseWriter, r *http
 				return
 			}
 			resp, err = service.SaveWinner(betID, winner)
+		} else if strings.EqualFold("last", firstCommand) {
+			resp, err = service.GetLastEndedBetInfo()
 		}
 
 		if err != nil {

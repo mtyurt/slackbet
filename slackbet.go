@@ -2,7 +2,9 @@ package slackbet
 
 import "net/http"
 
-const TimeFormat = "01-02-2006"
+const TimeFormat = "02-01-2006"
+
+var Months = [...]string{"january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
 
 type BetService interface {
 	ParseRequestAndCheckToken(*http.Request) error
@@ -11,6 +13,7 @@ type BetService interface {
 	SaveBet(string, int) (string, error)
 	ListBets() (string, error)
 	GetBetInfo(int) (string, error)
+	GetBetInfoForMonth(int) (string, error)
 	CalculateWhoWins(int) (string, error)
 	SaveWinner(int, int) (string, error)
 	GetLastEndedBetInfo() (string, error)

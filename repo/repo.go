@@ -30,6 +30,19 @@ type BetSummary struct {
 	WinnerNumber int
 }
 
+func (b *BetSummary) String() string {
+	str := strconv.Itoa(b.ID) + "\tstart: " + b.StartDate
+	if b.Status == "open" {
+		str += "\t(still open)"
+	} else if b.EndDate != "" {
+		str += "\tend: " + b.EndDate
+	}
+	if b.WinnerNumber != -1 {
+		str += "\twinner score: " + strconv.Itoa(b.WinnerNumber)
+	}
+	return str
+}
+
 type BetDetail struct {
 	User   string
 	Number int

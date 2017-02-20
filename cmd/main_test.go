@@ -51,10 +51,6 @@ func TestComplexBet(t *testing.T) {
 	if resp := betWithParams(params, service); resp != "saved successfully" {
 		t.Fatal(resp)
 	}
-	params.Set("text", "info")
-	if resp := betWithParams(params, service); strings.Contains(resp, "75") || strings.Contains(resp, "100") {
-		t.Fatal("response contains confidential info", resp)
-	}
 	params.Set("text", "info 1")
 	if resp := betWithParams(params, service); strings.Contains(resp, "75") || strings.Contains(resp, "100") || !strings.Contains(resp, "open") {
 		t.Fatal("response contains confidential info", resp)
@@ -64,7 +60,7 @@ func TestComplexBet(t *testing.T) {
 	if resp := betWithParams(params, service); resp != "ended bet[1] successfully" {
 		t.Fatal(resp)
 	}
-	params.Set("text", "info")
+	params.Set("text", "info 1")
 	resp := betWithParams(params, service)
 	if strings.Contains(resp, "250") || !strings.Contains(resp, "100") || !strings.Contains(resp, "omer") || !strings.Contains(resp, "tarik") || !strings.Contains(resp, "end") {
 		t.Fatal("response does not contain necessary info", resp)

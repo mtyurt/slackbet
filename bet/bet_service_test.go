@@ -167,7 +167,7 @@ func TestListBets(t *testing.T) {
 	client.Cmd("FLUSHALL")
 
 	listResp, err := service.ListBets()
-	if err != nil || listResp != "empty" {
+	if err != nil || listResp != "" {
 		t.Fatal("list failed", err, listResp)
 	}
 
@@ -221,15 +221,24 @@ func TestGetBet(t *testing.T) {
 	}
 	jsonStr := "[{\"User\":\"user1\",\"Number\":100},{\"User\":\"user2\",\"Number\":75}]"
 	client.Cmd("HMSET", 2, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed", "details", jsonStr)
-	client.Cmd("HMSET", 3, "startDate", "01-02-2016", "status", "open", "details", "[]")
+	client.Cmd("HMSET", 3, "startDate", "01-03-2016", "status", "open", "details", "[]")
 	client.Cmd("SET", "OpenBet", 3)
+	client.Cmd("SET", "LastID", 3)
 
 	getResp, err = service.GetBetInfo(2)
 	if err != nil || getResp != "2\tstart: 01-02-2016\tend: 02-02-2016\n\n1.\tuser2\t75\n2.\tuser1\t100\n" {
 		t.Fatal("get bet failed", err, "response:", getResp)
 	}
+	getResp, err = service.GetBetInfoForMonth(1)
+	if err != nil || getResp != "2\tstart: 01-02-2016\tend: 02-02-2016\n\n1.\tuser2\t75\n2.\tuser1\t100\n" {
+		t.Fatal("get bet failed", err, "response:", getResp)
+	}
 	getResp, err = service.GetBetInfo(3)
-	if err != nil || getResp != "3\tstart: 01-02-2016\t(still open)" {
+	if err != nil || getResp != "3\tstart: 01-03-2016\t(still open)" {
+		t.Fatal("get bet failed", err, getResp)
+	}
+	getResp, err = service.GetBetInfoForMonth(2)
+	if err != nil || getResp != "3\tstart: 01-03-2016\t(still open)" {
 		t.Fatal("get bet failed", err, getResp)
 	}
 	getResp, err = service.GetBetInfo(4)

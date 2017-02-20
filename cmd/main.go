@@ -64,15 +64,26 @@ func betHandler(service slackbet.BetService) func(w http.ResponseWriter, r *http
 			resp, err = service.EndBet(user)
 		} else if strings.EqualFold("info", firstCommand) {
 			betID := -1
-			if len(commands) > 1 {
-				betID, err = strconv.Atoi(commands[1])
+			if len(commands) < 2 {
+				writeResponseWithBadRequest(&w, "usage: /bet info <month or id of bet>")
+				return
+			}
+			secondArg := commands[1]
+			if isAllInteger(secondArg) {
+				betID, err = strconv.Atoi(secondArg)
 				if err != nil {
 					writeResponseWithBadRequest(&w, "id is not a valid integer "+commands[1])
 					return
 				}
+				resp, err = service.GetBetInfo(betID)
+			} else {
+				monthIndex := getMonthIndex(secondArg)
+				if monthIndex == -1 {
+					writeResponseWithBadRequest(&w, secondArg+" is not a valid month.")
+					return
+				}
+				resp, err = service.GetBetInfoForMonth(monthIndex)
 			}
-
-			resp, err = service.GetBetInfo(betID)
 		} else if strings.EqualFold("whowins", firstCommand) {
 			if len(commands) > 1 {
 				referenceNumber, err := strconv.Atoi(commands[1])
@@ -126,6 +137,23 @@ func betHandler(service slackbet.BetService) func(w http.ResponseWriter, r *http
 		}
 		fmt.Fprint(w, resp)
 	}
+}
+func getMonthIndex(month string) int {
+	for i, m := range slackbet.Months {
+		if m == month {
+			return i
+		}
+	}
+	return -1
+}
+
+func isAllInteger(s string) bool {
+	for _, c := range []byte(s) {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func writeResponseWithBadRequest(w *http.ResponseWriter, text string) {

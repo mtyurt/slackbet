@@ -141,11 +141,11 @@ func (service *BetService) GetLastEndedBetInfo() (string, error) {
 	if err != nil || !exists {
 		return "", errors.New("No such bet exists.")
 	}
-	summary, err := service.betSummary(betID)
+	summary, err := service.Repo.GetBetSummary(betID)
 	if err != nil {
 		return "", err
 	}
-	return service.generateBetDetails(betID, summary)
+	return service.generateBetDetails(betID, summary.String())
 }
 
 func (service *BetService) GetBetInfo(id int) (string, error) {
@@ -164,7 +164,7 @@ func (service *BetService) GetBetInfo(id int) (string, error) {
 	if err != nil || !exists {
 		return "", errors.New("No such bet exists.")
 	}
-	summary, err := service.betSummary(betID)
+	summary, err := service.Repo.GetBetSummary(betID)
 	if err != nil {
 		return "", err
 	}
@@ -173,9 +173,43 @@ func (service *BetService) GetBetInfo(id int) (string, error) {
 		return "", err
 	}
 	if openBetID == betID {
-		return summary, nil
+		return summary.String(), nil
 	}
-	return service.generateBetDetails(betID, summary)
+	return service.generateBetDetails(betID, summary.String())
+}
+func (service *BetService) GetBetInfoForMonth(monthIndex int) (string, error) {
+	summaries, err := service.getBetSummaryList(12)
+	if err != nil {
+		return "", err
+	}
+	reverse(summaries)
+	var summary *repo.BetSummary
+	for i := 0; i < len(summaries); i++ {
+		s := summaries[i]
+		date := s.EndDate
+		if s.EndDate == "" {
+			date = s.StartDate
+		}
+		month, err := strconv.Atoi(date[3:5])
+		if err != nil {
+			return "", err
+		}
+		if month == monthIndex+1 {
+			summary = &s
+			break
+		}
+	}
+	if summary == nil {
+		return "", errors.New("bet for month " + slackbet.Months[monthIndex] + " not found.")
+	}
+	openBetID, err := service.Repo.GetIDOfOpenBet()
+	if err != nil {
+		return "", err
+	}
+	if openBetID == summary.ID {
+		return summary.String(), nil
+	}
+	return service.generateBetDetails(summary.ID, summary.String())
 }
 func (service *BetService) generateBetDetails(betID int, summary string) (string, error) {
 	details, err := service.Repo.GetBetDetails(betID)
@@ -307,43 +341,45 @@ func (service *BetService) StartNewBet(user string) (string, error) {
 }
 
 func (service *BetService) ListBets() (string, error) {
-	lastID, err := service.Repo.GetLastBetID()
-	if err != nil {
-		return "", nil
-	}
-	if lastID < 1 {
-		return "empty", nil
-	}
-	responseStr := ""
-	i := lastID - 5
-	if i < 1 {
-		i = 1
-	}
-	for ; i <= lastID; i++ {
-		summary, err := service.betSummary(i)
-		if err == nil {
-			responseStr += summary + "\n"
-		} else {
-			return "", err
-		}
-	}
-	return responseStr, nil
-}
-func (service *BetService) betSummary(betID int) (string, error) {
-	summary, err := service.Repo.GetBetSummary(betID)
+	summaries, err := service.getBetSummaryList(5)
 	if err != nil {
 		return "", err
 	}
-	str := strconv.Itoa(summary.ID) + "\tstart: " + summary.StartDate
-	if summary.Status == "open" {
-		str += "\t(still open)"
-	} else if summary.EndDate != "" {
-		str += "\tend: " + summary.EndDate
+	response := ""
+	for _, summary := range summaries {
+		response += summary.String() + "\n"
 	}
-	if summary.WinnerNumber != -1 {
-		str += "\twinner score: " + strconv.Itoa(summary.WinnerNumber)
+	return response, nil
+}
+
+func (service *BetService) getBetSummaryList(count int) ([]repo.BetSummary, error) {
+	lastID, err := service.Repo.GetLastBetID()
+	if err != nil {
+		return nil, err
 	}
-	return str, nil
+	if lastID < 1 {
+		return nil, nil
+	}
+	i := lastID - count
+	if i < 1 {
+		i = 1
+	}
+	list := make([]repo.BetSummary, lastID)
+	for ; i <= lastID; i++ {
+		summary, err := service.Repo.GetBetSummary(i)
+		if err != nil {
+			return nil, err
+		} else {
+			list[i-1] = *summary
+		}
+	}
+	return list, nil
+}
+func reverse(ss []repo.BetSummary) {
+	last := len(ss) - 1
+	for i := 0; i < len(ss)/2; i++ {
+		ss[i], ss[last-i] = ss[last-i], ss[i]
+	}
 }
 func (service *BetService) ParseRequestAndCheckToken(r *http.Request) error {
 	r.ParseForm()

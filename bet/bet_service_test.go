@@ -337,11 +337,11 @@ func openRedis() (*redis.Client, error) {
 	return client, nil
 }
 
-func (service *MockService) GetChannelMembers() ([]string, error) {
+func (service *MockService) GetChannelMembers(channelID string) ([]string, error) {
 	return service.channelMembers, nil
 }
 
-func (service *MockService) SendCallback(text string) {
+func (service *MockService) SendCallback(text string, channel string) {
 	service.sentCallback = text
 }
 func mockService() *BetService {

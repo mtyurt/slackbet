@@ -20,8 +20,8 @@ type BetService interface {
 	ListAbsentUsers() (string, error)
 }
 type SlackService interface {
-	GetChannelMembers() ([]string, error)
-	SendCallback(string)
+	GetChannelMembers(string) ([]string, error)
+	SendCallback(string, string)
 }
 type Conf struct {
 	Admins            []string `json:admins`

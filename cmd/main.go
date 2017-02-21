@@ -178,7 +178,7 @@ func main() {
 		fmt.Println("conf cannot be read", err)
 		return
 	}
-	slackService := &slack.SlackService{Conf: conf}
+	slackService := &slack.SlackService{PostToken: conf.PostToken}
 	service := &bet.BetService{Repo: &repo.RedisRepo{Url: conf.RedisUrl}, Conf: conf, SlackService: slackService}
 	http.HandleFunc("/bet", betHandler(service))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

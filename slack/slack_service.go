@@ -6,17 +6,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-
-	"github.com/mtyurt/slackbet"
 )
 
 type SlackService struct {
-	Conf *slackbet.Conf
+	PostToken string
 }
 
-func (service *SlackService) SendCallback(text string) {
-	conf := service.Conf
-	uri := "https://slack.com/api/chat.postMessage?token=" + conf.PostToken + "&channel=" + url.QueryEscape(conf.Channel) + "&text=" + url.QueryEscape(text) + "&as_user=true"
+func (service *SlackService) SendCallback(text string, channel string) {
+	uri := "https://slack.com/api/chat.postMessage?token=" + service.PostToken + "&channel=" + url.QueryEscape(channel) + "&text=" + url.QueryEscape(text) + "&as_user=true"
 	resp, err := http.Get(uri)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -50,9 +47,8 @@ type slchannel struct {
 	Channel slchannelinfo `json:channel`
 }
 
-func (service *SlackService) GetChannelMembers() ([]string, error) {
-	conf := service.Conf
-	resp, err := http.Get("https://slack.com/api/channels.info?token=" + conf.PostToken + "&channel=" + conf.ChannelID)
+func (service *SlackService) GetChannelMembers(channelID string) ([]string, error) {
+	resp, err := http.Get("https://slack.com/api/channels.info?token=" + service.PostToken + "&channel=" + channelID)
 
 	if err != nil {
 		return nil, err
@@ -69,7 +65,7 @@ func (service *SlackService) GetChannelMembers() ([]string, error) {
 	}
 	memberIds := channelInfo.Channel.Members
 	var userNames []string
-	baseUserInfoReqUrl := "https://slack.com/api/users.info?token=" + conf.PostToken + "&user="
+	baseUserInfoReqUrl := "https://slack.com/api/users.info?token=" + service.PostToken + "&user="
 	for _, userId := range memberIds {
 		resp, err = http.Get(baseUserInfoReqUrl + userId)
 		body, err = ioutil.ReadAll(resp.Body)

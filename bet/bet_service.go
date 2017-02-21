@@ -54,7 +54,7 @@ func (service *BetService) ListAbsentUsers() (string, error) {
 }
 
 func (service *BetService) doListAbsentUsers(betDetails []repo.BetDetail) {
-	channelMembers, err := service.SlackService.GetChannelMembers()
+	channelMembers, err := service.SlackService.GetChannelMembers(service.Conf.ChannelID)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -70,7 +70,7 @@ func (service *BetService) doListAbsentUsers(betDetails []repo.BetDetail) {
 		}
 	}
 
-	service.SlackService.SendCallback("Users who have not placed a bet yet: " + strings.Join(channelMembers, ", "))
+	service.SlackService.SendCallback("Users who have not placed a bet yet: "+strings.Join(channelMembers, ", "), service.Conf.Channel)
 }
 
 func (service *BetService) CalculateWhoWins(reference int) (string, error) {
@@ -272,7 +272,7 @@ func (service *BetService) sendBetEndedCallback(betID int) {
 		fmt.Println(err.Error())
 		return
 	}
-	service.SlackService.SendCallback(betInfo)
+	service.SlackService.SendCallback(betInfo, service.Conf.Channel)
 }
 
 func (service *BetService) SaveBet(user string, number int) (string, error) {
@@ -290,7 +290,7 @@ func (service *BetService) SaveBet(user string, number int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	go service.SlackService.SendCallback(user + " has placed a bet. Have you?")
+	go service.SlackService.SendCallback(user+" has placed a bet. Have you?", service.Conf.Channel)
 	return "saved successfully", nil
 }
 
@@ -336,7 +336,7 @@ func (service *BetService) StartNewBet(user string) (string, error) {
 		return "", err
 	}
 
-	go service.SlackService.SendCallback("A new bet has started!")
+	go service.SlackService.SendCallback("A new bet has started!", service.Conf.Channel)
 	return "started bet[" + strconv.Itoa(newID) + "] successfully", nil
 }
 

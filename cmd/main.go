@@ -12,7 +12,6 @@ import (
 	"github.com/mtyurt/slackbet"
 	"github.com/mtyurt/slackbet/bet"
 	"github.com/mtyurt/slackbet/repo"
-	oldslack "github.com/mtyurt/slackbet/slack"
 )
 
 const availableCommands = "Available commands: save, list, info, last, whowins "
@@ -154,7 +153,7 @@ func parseConf(confFileName string) (*slackbet.Conf, error) {
 	return c, nil
 }
 
-func populateMux(mux *oldslack.SlackMux, service slackbet.BetService) {
+func populateMux(mux *slack.SlackMux, service slackbet.BetService) {
 	mux.RegisterCommand("start", startHandler(service))
 	mux.RegisterCommand("list", listHandler(service))
 	mux.RegisterCommand("save", saveBetHandler(service))
@@ -167,7 +166,7 @@ func populateMux(mux *oldslack.SlackMux, service slackbet.BetService) {
 	mux.RegisterCommand("last", lastInfoHandler(service))
 }
 
-var mux *oldslack.SlackMux = &oldslack.SlackMux{}
+var mux *slack.SlackMux = &slack.SlackMux{}
 
 func main() {
 	conf, err := parseConf("conf.json")

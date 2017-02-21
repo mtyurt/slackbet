@@ -39,7 +39,7 @@ func (mux *SlackMux) RegisterCommand(command string, handler SlackCommandHandler
 	mux.commandMu.Unlock()
 
 }
-func (mux *SlackMux) slackHandler() func(w http.ResponseWriter, r *http.Request) {
+func (mux *SlackMux) SlackHandler() func(w http.ResponseWriter, r *http.Request) {
 	if mux.Token == "" {
 		panic("Token is missing! Set token first!")
 	}

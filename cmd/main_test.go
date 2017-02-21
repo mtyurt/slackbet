@@ -12,6 +12,7 @@ import (
 	"github.com/mtyurt/slackbet"
 	"github.com/mtyurt/slackbet/bet"
 	"github.com/mtyurt/slackbet/repo"
+	oldslack "github.com/mtyurt/slackbet/slack"
 )
 
 const slacktoken = "slacktoken"
@@ -25,43 +26,44 @@ func TestComplexBet(t *testing.T) {
 		t.Fatal(err)
 	}
 	cli.Cmd("FLUSHALL")
-
-	ts := httptest.NewServer(http.HandlerFunc(betHandler(service)))
+	mux.Token = slacktoken
+	populateMux(mux, service)
+	ts := httptest.NewServer(http.HandlerFunc(mux.SlackHandler()))
 	defer ts.Close()
 
 	params := make(url.Values)
 	params.Add("token", slacktoken)
 	params.Add("user_name", "sezgin")
 	params.Add("text", "start")
-	if resp := betWithParams(params, service); resp != "started bet[1] successfully" {
+	if resp := betWithParams(params, service, mux); resp != "started bet[1] successfully" {
 		t.Fatal(resp)
 	}
 	params.Set("user_name", "omer")
 	params.Set("text", "save 100")
-	if resp := betWithParams(params, service); resp != "saved successfully" {
+	if resp := betWithParams(params, service, mux); resp != "saved successfully" {
 		t.Fatal(resp)
 	}
 	params.Set("user_name", "tarik")
 	params.Set("text", "save 250")
-	if resp := betWithParams(params, service); resp != "saved successfully" {
+	if resp := betWithParams(params, service, mux); resp != "saved successfully" {
 		t.Fatal(resp)
 	}
 	params.Set("user_name", "tarik")
 	params.Set("text", "save 75")
-	if resp := betWithParams(params, service); resp != "saved successfully" {
+	if resp := betWithParams(params, service, mux); resp != "saved successfully" {
 		t.Fatal(resp)
 	}
 	params.Set("text", "info 1")
-	if resp := betWithParams(params, service); strings.Contains(resp, "75") || strings.Contains(resp, "100") || !strings.Contains(resp, "open") {
+	if resp := betWithParams(params, service, mux); strings.Contains(resp, "75") || strings.Contains(resp, "100") || !strings.Contains(resp, "open") {
 		t.Fatal("response contains confidential info", resp)
 	}
 	params.Set("text", "end")
 	params.Set("user_name", "sezgin")
-	if resp := betWithParams(params, service); resp != "ended bet[1] successfully" {
+	if resp := betWithParams(params, service, mux); resp != "ended bet[1] successfully" {
 		t.Fatal(resp)
 	}
 	params.Set("text", "info 1")
-	resp := betWithParams(params, service)
+	resp := betWithParams(params, service, mux)
 	if strings.Contains(resp, "250") || !strings.Contains(resp, "100") || !strings.Contains(resp, "omer") || !strings.Contains(resp, "tarik") || !strings.Contains(resp, "end") {
 		t.Fatal("response does not contain necessary info", resp)
 	}
@@ -101,14 +103,14 @@ func TestExampleConf(t *testing.T) {
 	}
 }
 
-func betWithParams(params url.Values, service slackbet.BetService) string {
+func betWithParams(params url.Values, service slackbet.BetService, mux *oldslack.SlackMux) string {
 	recorder := httptest.NewRecorder()
 	req := &http.Request{
 		Method: "POST",
 		URL:    &url.URL{Path: "/bet"},
 		Form:   params,
 	}
-	betHandler(service)(recorder, req)
+	mux.SlackHandler()(recorder, req)
 	return recorder.Body.String()
 }
 

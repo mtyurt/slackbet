@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/mtyurt/slack"
 	"github.com/mtyurt/slackbet"
@@ -120,66 +119,6 @@ func lastInfoHandler(service slackbet.BetService) func(string, []string) (string
 		return service.GetLastEndedBetInfo()
 	}
 }
-func betHandler(service slackbet.BetService) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		err := service.ParseRequestAndCheckToken(r)
-		if err != nil {
-			writeResponseWithBadRequest(&w, err.Error())
-			return
-		}
-		user := r.FormValue("user_name")
-		text := r.FormValue("text")
-		commands := strings.Split(text, " ")
-		if commands == nil || len(commands) < 1 {
-			writeResponseWithBadRequest(&w, availableCommands)
-			return
-		}
-		firstCommand := commands[0]
-		if !strings.EqualFold("save", firstCommand) &&
-			!strings.EqualFold("start", firstCommand) &&
-			!strings.EqualFold("end", firstCommand) &&
-			!strings.EqualFold("whowins", firstCommand) &&
-			!strings.EqualFold("savefor", firstCommand) &&
-			!strings.EqualFold("listabsent", firstCommand) &&
-			!strings.EqualFold("savewinner", firstCommand) &&
-			!strings.EqualFold("list", firstCommand) &&
-			!strings.EqualFold("last", firstCommand) &&
-			!strings.EqualFold("info", firstCommand) {
-			writeResponseWithBadRequest(&w, availableCommands)
-			return
-		}
-		var resp string
-		var handler oldslack.SlackCommandHandler
-		if strings.EqualFold("start", firstCommand) {
-			handler = startHandler(service)
-		} else if strings.EqualFold("list", firstCommand) {
-			handler = listHandler(service)
-		} else if strings.EqualFold("save", firstCommand) {
-			handler = saveBetHandler(service)
-		} else if strings.EqualFold("end", firstCommand) {
-			handler = endBetHandler(service)
-		} else if strings.EqualFold("info", firstCommand) {
-			handler = betInfoHandler(service)
-		} else if strings.EqualFold("whowins", firstCommand) {
-			handler = whoWinsHandler(service)
-		} else if strings.EqualFold("savefor", firstCommand) {
-			handler = saveForHandler(service)
-		} else if strings.EqualFold("listabsent", firstCommand) {
-			handler = listAbentUsersHandler(service)
-		} else if strings.EqualFold("savewinner", firstCommand) {
-			handler = saveWinnerHandler(service)
-		} else if strings.EqualFold("last", firstCommand) {
-			handler = lastInfoHandler(service)
-		}
-		resp, err = handler(user, commands)
-
-		if err != nil {
-			writeResponseWithBadRequest(&w, err.Error())
-			return
-		}
-		fmt.Fprint(w, resp)
-	}
-}
 func getMonthIndex(month string) int {
 	for i, m := range slackbet.Months {
 		if m == month {
@@ -215,30 +154,21 @@ func parseConf(confFileName string) (*slackbet.Conf, error) {
 	return c, nil
 }
 
-//func populateMux(mux *oldslack.SlackMux) {
-//	if strings.EqualFold("start", firstCommand) {
-//		handler = startHandler(service)
-//	} else if strings.EqualFold("list", firstCommand) {
-//		handler = listHandler(service)
-//	} else if strings.EqualFold("save", firstCommand) {
-//		handler = saveBetHandler(service)
-//	} else if strings.EqualFold("end", firstCommand) {
-//		handler = endBetHandler(service)
-//	} else if strings.EqualFold("info", firstCommand) {
-//		handler = betInfoHandler(service)
-//	} else if strings.EqualFold("whowins", firstCommand) {
-//		handler = whoWinsHandler(service)
-//	} else if strings.EqualFold("savefor", firstCommand) {
-//		handler = saveForHandler(service)
-//	} else if strings.EqualFold("listabsent", firstCommand) {
-//		handler = listAbentUsersHandler(service)
-//	} else if strings.EqualFold("savewinner", firstCommand) {
-//		handler = saveWinnerHandler(service)
-//	} else if strings.EqualFold("last", firstCommand) {
-//		handler = lastInfoHandler(service)
-//	}
-//
-//}
+func populateMux(mux *oldslack.SlackMux, service slackbet.BetService) {
+	mux.RegisterCommand("start", startHandler(service))
+	mux.RegisterCommand("list", listHandler(service))
+	mux.RegisterCommand("save", saveBetHandler(service))
+	mux.RegisterCommand("end", endBetHandler(service))
+	mux.RegisterCommand("info", betInfoHandler(service))
+	mux.RegisterCommand("whowins", whoWinsHandler(service))
+	mux.RegisterCommand("savefor", saveForHandler(service))
+	mux.RegisterCommand("listabsent", listAbentUsersHandler(service))
+	mux.RegisterCommand("savewinner", saveWinnerHandler(service))
+	mux.RegisterCommand("last", lastInfoHandler(service))
+}
+
+var mux *oldslack.SlackMux = &oldslack.SlackMux{}
+
 func main() {
 	conf, err := parseConf("conf.json")
 	if err != nil {
@@ -247,9 +177,9 @@ func main() {
 	}
 	slackService := &slack.SlackService{PostToken: conf.PostToken}
 	service := &bet.BetService{Repo: &repo.RedisRepo{Url: conf.RedisUrl}, Conf: conf, SlackService: slackService}
-	mux := &oldslack.SlackMux{}
-	populateMux()
-	http.HandleFunc("/bet", betHandler(service))
+	mux.Token = service.Conf.SlashCommandToken
+	populateMux(mux, service)
+	http.HandleFunc("/bet", mux.SlackHandler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello mate.")
 	})

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mtyurt/slack"
 	"github.com/mtyurt/slackbet"
 	"github.com/mtyurt/slackbet/bet"
 	"github.com/mtyurt/slackbet/repo"
-	"github.com/mtyurt/slackbet/slack"
 )
 
 const availableCommands = "Available commands: save, list, info, last, whowins "

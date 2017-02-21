@@ -239,7 +239,7 @@ func (service *BetService) generateBetDetails(betID int, summary string) (string
 }
 
 func (service *BetService) EndBet(user string) (string, error) {
-	if !service.isUserAuthorized(user) {
+	if !service.IsAuthorizedUser(user) {
 		return "", errors.New("You are not authorized to end a bet.")
 	}
 	openBetID, err := service.Repo.GetIDOfOpenBet()
@@ -257,7 +257,7 @@ func (service *BetService) EndBet(user string) (string, error) {
 	go service.sendBetEndedCallback(openBetID)
 	return "ended bet[" + strconv.Itoa(openBetID) + "] successfully", nil
 }
-func (service *BetService) isUserAuthorized(user string) bool {
+func (service *BetService) IsAuthorizedUser(user string) bool {
 	for _, n := range service.Conf.Admins {
 		if strings.EqualFold(n, user) {
 			return true
@@ -313,7 +313,7 @@ func appendBetToList(list []repo.BetDetail, user string, number int) []repo.BetD
 }
 
 func (service *BetService) StartNewBet(user string) (string, error) {
-	if !service.isUserAuthorized(user) {
+	if !service.IsAuthorizedUser(user) {
 		return "", errors.New("You are not authorized to start a bet.")
 	}
 	openBetID, err := service.Repo.GetIDOfOpenBet()

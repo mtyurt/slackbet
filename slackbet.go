@@ -18,6 +18,7 @@ type BetService interface {
 	SaveWinner(int, int) (string, error)
 	GetLastEndedBetInfo() (string, error)
 	ListAbsentUsers() (string, error)
+	IsAuthorizedUser(string) bool
 }
 type SlackService interface {
 	GetChannelMembers(string) ([]string, error)

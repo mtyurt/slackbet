@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mtyurt/slack"
 	"github.com/mtyurt/slackbet"
 	"github.com/mtyurt/slackbet/bet"
 	"github.com/mtyurt/slackbet/repo"
+	"github.com/mtyurt/slackcommander"
 )
 
 const availableCommands = "Available commands: save, list, info, last, whowins "
@@ -158,7 +158,7 @@ func parseConf(confFileName string) (*slackbet.Conf, error) {
 	return c, nil
 }
 
-func populateMux(mux *slack.SlackMux, service slackbet.BetService) {
+func populateMux(mux *slackcommander.SlackMux, service slackbet.BetService) {
 	mux.RegisterCommand("start", startHandler(service))
 	mux.RegisterCommand("list", listHandler(service))
 	mux.RegisterCommand("save", saveBetHandler(service))
@@ -171,7 +171,7 @@ func populateMux(mux *slack.SlackMux, service slackbet.BetService) {
 	mux.RegisterCommand("last", lastInfoHandler(service))
 }
 
-var mux *slack.SlackMux = &slack.SlackMux{}
+var mux *slackcommander.SlackMux = &slackcommander.SlackMux{}
 
 func main() {
 	conf, err := parseConf("conf.json")
@@ -179,7 +179,7 @@ func main() {
 		fmt.Println("conf cannot be read", err)
 		return
 	}
-	slackService := &slack.SlackService{PostToken: conf.PostToken}
+	slackService := &slackcommander.SlackService{PostToken: conf.PostToken}
 	service := &bet.BetService{Repo: &repo.RedisRepo{Url: conf.RedisUrl}, Conf: conf, SlackService: slackService}
 	mux.Token = service.Conf.SlashCommandToken
 	populateMux(mux, service)

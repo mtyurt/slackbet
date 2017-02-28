@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/mediocregopher/radix.v2/redis"
-	"github.com/mtyurt/slack"
 	"github.com/mtyurt/slackbet"
 	"github.com/mtyurt/slackbet/bet"
 	"github.com/mtyurt/slackbet/repo"
+	"github.com/mtyurt/slackcommander"
 )
 
 const slacktoken = "slacktoken"
@@ -103,7 +103,7 @@ func TestExampleConf(t *testing.T) {
 	}
 }
 
-func betWithParams(params url.Values, service slackbet.BetService, mux *slack.SlackMux) string {
+func betWithParams(params url.Values, service slackbet.BetService, mux *slackcommander.SlackMux) string {
 	recorder := httptest.NewRecorder()
 	req := &http.Request{
 		Method: "POST",

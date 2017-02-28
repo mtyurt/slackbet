@@ -10,7 +10,7 @@ type BetService interface {
 	ParseRequestAndCheckToken(*http.Request) error
 	StartNewBet(string) (string, error)
 	EndBet(string) (string, error)
-	SaveBet(string, int) (string, error)
+	SaveBet(string, int, string) (string, error)
 	ListBets() (string, error)
 	GetBetInfo(int) (string, error)
 	GetBetInfoForMonth(int) (string, error)

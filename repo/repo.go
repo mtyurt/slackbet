@@ -44,8 +44,9 @@ func (b *BetSummary) String() string {
 }
 
 type BetDetail struct {
-	User   string
-	Number int
+	User      string
+	Number    int
+	ExtraInfo string
 }
 
 // SetBetWinner sets the winner field of the bet.

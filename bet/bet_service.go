@@ -275,7 +275,7 @@ func (service *BetService) sendBetEndedCallback(betID int) {
 	service.SlackService.SendCallback(betInfo, service.Conf.Channel)
 }
 
-func (service *BetService) SaveBet(user string, number int) (string, error) {
+func (service *BetService) SaveBet(user string, number int, extraInfo string) (string, error) {
 	openBetID, err := service.Repo.GetIDOfOpenBet()
 	if openBetID == -1 {
 		return "", errors.New("There is no active bet right now.")
@@ -361,10 +361,13 @@ func (service *BetService) getBetSummaryList(count int) ([]repo.BetSummary, erro
 		return nil, nil
 	}
 	i := lastID - count
+	length := count
 	if i < 1 {
 		i = 1
+		length = lastID
 	}
-	list := make([]repo.BetSummary, lastID)
+
+	list := make([]repo.BetSummary, length)
 	for ; i <= lastID; i++ {
 		summary, err := service.Repo.GetBetSummary(i)
 		if err != nil {

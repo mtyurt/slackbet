@@ -66,7 +66,7 @@ func TestSaveBet(t *testing.T) {
 	}
 	client.Cmd("FLUSHALL")
 
-	saveResp, err := service.SaveBet("user1", 100)
+	saveResp, err := service.SaveBet("user1", 100, "")
 	if err == nil || err.Error() != "There is no active bet right now." || saveResp != "" {
 		t.Fatal("save bet should fail, returned error: ", err)
 	}
@@ -76,51 +76,51 @@ func TestSaveBet(t *testing.T) {
 		t.Fatal("start bet failed", err)
 	}
 
-	saveResp, err = service.SaveBet("user1", 100)
+	saveResp, err = service.SaveBet("user1", 100, "")
 	if err != nil {
 		t.Fatal("save failed", err, saveResp)
 	}
 
 	allResp := client.Cmd("HGETALL", 1)
 	betMap, err := allResp.Map()
-	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":100}]" {
+	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":100,\"ExtraInfo\":\"\"}]" {
 		t.Fatal("detail is wrong", betMap["details"])
 	}
 	//test second bet from same user
-	saveResp, err = service.SaveBet("user1", 250)
+	saveResp, err = service.SaveBet("user1", 250, "")
 	if err != nil {
 		t.Fatal("save failed", err, saveResp)
 	}
 
 	allResp = client.Cmd("HGETALL", 1)
 	betMap, err = allResp.Map()
-	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":250}]" {
+	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":250,\"ExtraInfo\":\"\"}]" {
 		t.Fatal("detail is wrong", betMap["details"])
 	}
 	//test second user betting
-	saveResp, err = service.SaveBet("user2", 300)
+	saveResp, err = service.SaveBet("user2", 300, "")
 	if err != nil {
 		t.Fatal("save failed", err, saveResp)
 	}
 
 	allResp = client.Cmd("HGETALL", 1)
 	betMap, err = allResp.Map()
-	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":250},{\"User\":\"user2\",\"Number\":300}]" {
+	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":250,\"ExtraInfo\":\"\"},{\"User\":\"user2\",\"Number\":300,\"ExtraInfo\":\"\"}]" {
 		t.Fatal("detail is wrong", betMap["details"])
 	}
-	saveResp, err = service.SaveBet("user2", 200)
+	saveResp, err = service.SaveBet("user2", 200, "")
 	if err != nil {
 		t.Fatal("save failed", err, saveResp)
 	}
 	allResp = client.Cmd("HGETALL", 1)
 	betMap, err = allResp.Map()
-	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":250},{\"User\":\"user2\",\"Number\":200}]" {
+	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":250,\"ExtraInfo\":\"\"},{\"User\":\"user2\",\"Number\":200,\"ExtraInfo\":\"\"}]" {
 		t.Fatal("detail is wrong", betMap["details"])
 	}
 	//set bet as closed
 	client.Cmd("HSET", 1, "status", "closed")
 	client.Cmd("DEL", "OpenBet")
-	saveResp, err = service.SaveBet("user2", 300)
+	saveResp, err = service.SaveBet("user2", 300, "")
 	if err == nil || err.Error() != "There is no active bet right now." {
 		t.Fatal("save should fail with message", err, saveResp)
 	}
@@ -134,7 +134,7 @@ func TestSaveBetForAnotherUser(t *testing.T) {
 	}
 	client.Cmd("FLUSHALL")
 
-	saveResp, err := service.SaveBet("user1", 100)
+	saveResp, err := service.SaveBet("user1", 100, "")
 	if err == nil || err.Error() != "There is no active bet right now." || saveResp != "" {
 		t.Fatal("save bet should fail, returned error: ", err)
 	}
@@ -144,18 +144,18 @@ func TestSaveBetForAnotherUser(t *testing.T) {
 		t.Fatal("start bet failed", err)
 	}
 
-	saveResp, err = service.SaveBet("user1", 100)
+	saveResp, err = service.SaveBet("user1", 100, "")
 	if err != nil {
 		t.Fatal("save failed", err, saveResp)
 	}
 
 	allResp := client.Cmd("HGETALL", 1)
 	betMap, err := allResp.Map()
-	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":100}]" {
+	if betMap["details"] != "[{\"User\":\"user1\",\"Number\":100,\"ExtraInfo\":\"\"}]" {
 		t.Fatal("detail is wrong", betMap["details"])
 	}
 	//test second bet from same user
-	saveResp, err = service.SaveBet("user1", 250)
+	saveResp, err = service.SaveBet("user1", 250, "")
 }
 func TestListBets(t *testing.T) {
 	service := mockService()
@@ -173,7 +173,7 @@ func TestListBets(t *testing.T) {
 
 	client.Cmd("HMSET", 1, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed")
 	client.Cmd("HMSET", 2, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed")
-	jsonStr := "[{\"User\":\"user1\",\"Number\":50},{\"User\":\"user2\",\"Number\":100}]"
+	jsonStr := "[{\"User\":\"user1\",\"Number\":50,\"ExtraInfo\":\"\"},{\"User\":\"user2\",\"Number\":100,\"ExtraInfo\":\"\"}]"
 	client.Cmd("HMSET", 3, "startDate", "01-02-2016", "status", "open", "details", jsonStr)
 	client.Cmd("SET", "LastID", 3)
 	expectedStr := "1\tstart: 01-02-2016\tend: 02-02-2016\n2\tstart: 01-02-2016\tend: 02-02-2016\n3\tstart: 01-02-2016\t(still open)\n"
@@ -219,7 +219,7 @@ func TestGetBet(t *testing.T) {
 	if err != nil && getResp != "No bet exists" {
 		t.Fatal("get bet failed", err, getResp)
 	}
-	jsonStr := "[{\"User\":\"user1\",\"Number\":100},{\"User\":\"user2\",\"Number\":75}]"
+	jsonStr := "[{\"User\":\"user1\",\"Number\":100,\"ExtraInfo\":\"\"},{\"User\":\"user2\",\"Number\":75,\"ExtraInfo\":\"\"}]"
 	client.Cmd("HMSET", 2, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed", "details", jsonStr)
 	client.Cmd("HMSET", 3, "startDate", "01-03-2016", "status", "open", "details", "[]")
 	client.Cmd("SET", "OpenBet", 3)

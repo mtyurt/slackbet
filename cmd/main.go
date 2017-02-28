@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/mtyurt/slack"
 	"github.com/mtyurt/slackbet"
@@ -28,14 +29,18 @@ func listHandler(service slackbet.BetService) func(string, []string) (string, er
 }
 func saveBetHandler(service slackbet.BetService) func(string, []string) (string, error) {
 	return func(user string, commands []string) (string, error) {
-		if len(commands) != 2 {
-			return "", errors.New("save command format: save <number>")
+		if len(commands) < 2 {
+			return "", errors.New("save command format: save <number> <extra info>")
 		}
 		number, err := strconv.Atoi(commands[1])
 		if err != nil {
 			return "", errors.New("number is not a valid integer " + commands[1])
 		}
-		return service.SaveBet(user, number)
+		extraInfo := ""
+		if len(commands) > 2 {
+			extraInfo = strings.Join(commands[2:], " ")
+		}
+		return service.SaveBet(user, number, extraInfo)
 	}
 }
 func endBetHandler(service slackbet.BetService) func(string, []string) (string, error) {
@@ -88,7 +93,7 @@ func saveForHandler(service slackbet.BetService) func(string, []string) (string,
 		if err != nil {
 			return "", errors.New("number is not a valid integer " + commands[2])
 		}
-		return service.SaveBet(user, number)
+		return service.SaveBet(user, number, "")
 	}
 }
 func listAbentUsersHandler(service slackbet.BetService) func(string, []string) (string, error) {

@@ -360,20 +360,21 @@ func (service *BetService) getBetSummaryList(count int) ([]repo.BetSummary, erro
 	if lastID < 1 {
 		return nil, nil
 	}
-	i := lastID - count
 	length := count
-	if i < 1 {
-		i = 1
+	base := lastID - length + 1
+	if base < 1 {
 		length = lastID
+		base = 1
 	}
 
+	fmt.Println("list with base:", base, "length:", length, "lastID:", lastID)
 	list := make([]repo.BetSummary, length)
-	for ; i <= lastID; i++ {
-		summary, err := service.Repo.GetBetSummary(i)
+	for i := 0; i < length; i++ {
+		summary, err := service.Repo.GetBetSummary(base + i)
 		if err != nil {
 			return nil, err
 		} else {
-			list[i-1] = *summary
+			list[i] = *summary
 		}
 	}
 	return list, nil

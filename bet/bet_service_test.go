@@ -181,6 +181,19 @@ func TestListBets(t *testing.T) {
 	if err != nil || listResp != expectedStr {
 		t.Fatal("list failed", err, "expected\n", expectedStr, "but was\n", listResp)
 	}
+
+	client.Cmd("SET", "LastID", 7)
+	client.Cmd("DEL", "OpenBetID")
+	client.Cmd("HMSET", 3, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed")
+	client.Cmd("HMSET", 4, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed")
+	client.Cmd("HMSET", 5, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed")
+	client.Cmd("HMSET", 6, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed")
+	client.Cmd("HMSET", 7, "startDate", "01-02-2016", "endDate", "02-02-2016", "status", "closed")
+	expectedStr = "3\tstart: 01-02-2016\tend: 02-02-2016\n4\tstart: 01-02-2016\tend: 02-02-2016\n5\tstart: 01-02-2016\tend: 02-02-2016\n6\tstart: 01-02-2016\tend: 02-02-2016\n7\tstart: 01-02-2016\tend: 02-02-2016\n"
+	listResp, err = service.ListBets()
+	if err != nil || listResp != expectedStr {
+		t.Fatal("list failed", err, "expected\n", expectedStr, "but was\n", listResp)
+	}
 }
 func TestEndBet(t *testing.T) {
 	service := mockService()

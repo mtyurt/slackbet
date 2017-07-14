@@ -230,6 +230,9 @@ func (service *BetService) generateBetDetails(betID int, summary string) (string
 	responseStr := summary + "\n\n"
 	for i, detail := range details {
 		userSummary := strconv.Itoa(i+1) + ".\t" + detail.User + "\t" + strconv.Itoa(detail.Number)
+		if detail.ExtraInfo != "" {
+			userSummary += "\t" + detail.ExtraInfo
+		}
 		if _, ok := winners[detail.User]; ok {
 			userSummary = "*" + userSummary + " (WINNER!)*"
 		}
@@ -285,7 +288,7 @@ func (service *BetService) SaveBet(user string, number int, extraInfo string) (s
 	if err != nil {
 		return "", err
 	}
-	details = appendBetToList(details, user, number)
+	details = appendBetToList(details, user, number, extraInfo)
 	err = service.Repo.SetBetDetail(openBetID, details)
 	if err != nil {
 		return "", err
@@ -294,20 +297,21 @@ func (service *BetService) SaveBet(user string, number int, extraInfo string) (s
 	return "saved successfully", nil
 }
 
-func appendBetToList(list []repo.BetDetail, user string, number int) []repo.BetDetail {
+func appendBetToList(list []repo.BetDetail, user string, number int, extraInfo string) []repo.BetDetail {
 	found := false
 	newList := make([]repo.BetDetail, len(list))
 
 	for i, elem := range list {
-		newElem := repo.BetDetail{User: elem.User, Number: elem.Number}
+		newElem := repo.BetDetail{User: elem.User, Number: elem.Number, ExtraInfo: elem.ExtraInfo}
 		if elem.User == user {
 			newElem.Number = number
+			newElem.ExtraInfo = extraInfo
 			found = true
 		}
 		newList[i] = newElem
 	}
 	if !found {
-		newList = append(newList, repo.BetDetail{User: user, Number: number})
+		newList = append(newList, repo.BetDetail{User: user, Number: number, ExtraInfo: extraInfo})
 	}
 	return newList
 }

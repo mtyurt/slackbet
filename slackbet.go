@@ -32,4 +32,5 @@ type Conf struct {
 	SlashCommandToken string   `json:slashCommandToken`
 	RedisUrl          string   `json:redisUrl`
 	Port              string   `json:port`
+	EncryptionKey     string   `json:encryptionKey`
 }

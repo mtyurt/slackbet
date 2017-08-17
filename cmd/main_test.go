@@ -136,7 +136,7 @@ func (service *MockService) SendCallback(text string, channel string) {
 	service.sentCallback = text
 }
 func mockService() *bet.BetService {
-	c := &slackbet.Conf{SlashCommandToken: slacktoken, Admins: []string{"sezgin", "abdurrahim"}}
-	mockService := bet.BetService{Conf: c, Repo: &repo.RedisRepo{Url: "localhost:37564"}, SlackService: &MockService{}}
+	c := &slackbet.Conf{SlashCommandToken: slacktoken, Admins: []string{"sezgin", "abdurrahim"}, EncryptionKey: "testencryptionkey"}
+	mockService := bet.BetService{Conf: c, Repo: &repo.RedisRepo{Url: "localhost:37564", EncryptionKey: "testencryptionkey"}, SlackService: &MockService{}}
 	return &mockService
 }

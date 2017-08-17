@@ -1,11 +1,15 @@
 package repo
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"encoding/json"
 	"strconv"
 
 	"github.com/mediocregopher/radix.v2/redis"
 )
+
+var commonIV = []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
 
 type Repo interface {
 	AddNewBet(int, string) error
@@ -20,7 +24,8 @@ type Repo interface {
 	GetBetSummary(betID int) (*BetSummary, error)
 }
 type RedisRepo struct {
-	Url string
+	Url           string
+	EncryptionKey string
 }
 type BetSummary struct {
 	ID           int
@@ -113,16 +118,34 @@ func (repo *RedisRepo) GetBetDetails(betID int) ([]BetDetail, error) {
 	}
 	defer client.Close()
 	var details []BetDetail
-	detailsStr, err := client.Cmd("HGET", betID, "details").Str()
+	encodedDetails, err := client.Cmd("HGET", betID, "details").Str()
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal([]byte(detailsStr), &details)
+	detailsStr, err := decodeString([]byte(encodedDetails), repo.EncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(detailsStr, &details)
 	if err != nil {
 		return nil, err
 	}
 	return details, nil
 
+}
+
+func decodeString(cipheredtext []byte, key string) ([]byte, error) {
+	if key == "" {
+		return cipheredtext, nil
+	}
+	c, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return nil, err
+	}
+	cfb := cipher.NewCFBDecrypter(c, commonIV)
+	plaintext := make([]byte, len(cipheredtext))
+	cfb.XORKeyStream(plaintext, cipheredtext)
+	return plaintext, nil
 }
 
 // GetLastBetID returns the last inserted bet id into the system
@@ -233,11 +256,28 @@ func (repo *RedisRepo) SetBetDetail(betID int, details []BetDetail) error {
 	if err != nil {
 		return err
 	}
-	err = client.Cmd("HSET", betID, "details", string(marshalledDetails)).Err
+	encodedDetails, err := encodeString(marshalledDetails, repo.EncryptionKey)
+	if err != nil {
+		return err
+	}
+	err = client.Cmd("HSET", betID, "details", encodedDetails).Err
 	if err != nil {
 		return err
 	}
 	return nil
+}
+func encodeString(plaintext []byte, key string) (string, error) {
+	if key == "" {
+		return string(plaintext), nil
+	}
+	c, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+	cfb := cipher.NewCFBEncrypter(c, commonIV)
+	ciphertext := make([]byte, len(plaintext))
+	cfb.XORKeyStream(ciphertext, plaintext)
+	return string(ciphertext), nil
 }
 func (repo *RedisRepo) openRedisClient() (*redis.Client, error) {
 	client, err := redis.Dial("tcp", "localhost:37564")
